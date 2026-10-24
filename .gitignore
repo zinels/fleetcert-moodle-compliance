@@ -1,0 +1,5 @@
+.env
+.moodle/
+moodledata/
+vendor/
+.DS_Store

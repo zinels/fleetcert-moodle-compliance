@@ -1,0 +1,4 @@
+username,firstname,lastname,email
+synthetic.driver001,Alex,Driver,driver001@example.invalid
+synthetic.driver001,Alex,Driver,driver001@example.invalid
+synthetic.driver002,Sam,Driver,not-an-email
