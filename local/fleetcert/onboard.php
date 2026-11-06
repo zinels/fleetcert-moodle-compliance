@@ -13,8 +13,8 @@ if (optional_param('commit', 0, PARAM_BOOL) && data_submitted()) {
 }
 if (optional_param('errors', 0, PARAM_BOOL)) {
  require_sesskey(); header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename="onboarding-results.csv"');
- $out = fopen('php://output', 'w'); fputcsv($out, ['row', 'result']);
- foreach ($rows as $i => $r) { fputcsv($out, [$i + 2, $r['error'] ?: 'Valid']); } fclose($out); exit;
+ $out = fopen('php://output', 'w'); fputcsv($out, ['row', 'result'], ',', '"', '');
+ foreach ($rows as $i => $r) { fputcsv($out, [$i + 2, $r['error'] ?: 'Valid'], ',', '"', ''); } fclose($out); exit;
 }
 echo $OUTPUT->header(); $form->display();
 $table = new html_table(); $table->head = ['CSV row', 'Username', 'Validation/result'];

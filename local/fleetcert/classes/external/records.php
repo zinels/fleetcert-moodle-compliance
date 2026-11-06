@@ -14,12 +14,13 @@ final class records extends external_api {
    'limit' => new external_value(PARAM_INT, 'Page size 1-500', VALUE_DEFAULT, 100),
    'userid' => new external_value(PARAM_INT, 'Employee filter', VALUE_DEFAULT, 0),
    'courseid' => new external_value(PARAM_INT, 'Course filter', VALUE_DEFAULT, 0),
+   'status' => new external_value(PARAM_ALPHA, 'Optional training status', VALUE_DEFAULT, ''),
   ]);
  }
- public static function execute($orgid, $page = 0, $limit = 100, $userid = 0, $courseid = 0) {
-  $p = self::validate_parameters(self::execute_parameters(), compact('orgid', 'page', 'limit', 'userid', 'courseid'));
+ public static function execute($orgid, $page = 0, $limit = 100, $userid = 0, $courseid = 0, $status = '') {
+  $p = self::validate_parameters(self::execute_parameters(), compact('orgid', 'page', 'limit', 'userid', 'courseid', 'status'));
   self::validate_context(\context_system::instance());
-  return \local_fleetcert\service\compliance::records($p['orgid'], $p['page'], $p['limit'], $p['userid'], $p['courseid']);
+  return \local_fleetcert\service\compliance::records($p['orgid'], $p['page'], $p['limit'], $p['userid'], $p['courseid'], $p['status']);
  }
  public static function execute_returns() {
   return new external_multiple_structure(new external_single_structure([

@@ -32,6 +32,9 @@ $orgs = is_siteadmin() ? $DB->get_records('local_fleetcert_org') : $DB->get_reco
  'SELECT o.* FROM {local_fleetcert_org} o JOIN {local_fleetcert_manager} m ON m.orgid = o.id WHERE m.userid = ?', [$USER->id]);
 foreach ($orgs as $org) { echo html_writer::div(html_writer::link(new moodle_url('/local/fleetcert/index.php', ['orgid' => $org->id]), format_string($org->name))); }
 if ($orgid) {
+ if (is_siteadmin()) {
+  echo html_writer::div(html_writer::link(new moodle_url('/local/fleetcert/managers.php', ['orgid' => $orgid]), 'Manage organization managers'));
+ }
  $summary = \local_fleetcert\service\compliance::summary($orgid);
  $table = new html_table(); $table->head = ['Measure', 'Count'];
  foreach ($summary as $key => $value) { $table->data[] = [s($key), (int)$value]; } echo html_writer::table($table);

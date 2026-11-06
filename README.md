@@ -1,77 +1,92 @@
-# FleetCert — Moodle Training Compliance
+# FleetCert
+### Training records that answer the safety team's next question.
 
-FleetCert is a native Moodle local plugin for tracking organization-specific training requirements in logistics and industrial teams. It uses Moodle accounts, manual enrolment, course completion, messaging, scheduled tasks, capabilities and External Services. It tracks **simulated training compliance**, not legally recognized certifications.
+[![PHP checks](https://github.com/zinels/fleetcert-moodle-compliance/actions/workflows/php.yml/badge.svg)](https://github.com/zinels/fleetcert-moodle-compliance/actions/workflows/php.yml)
+[![Moodle integration](https://github.com/zinels/fleetcert-moodle-compliance/actions/workflows/moodle.yml/badge.svg)](https://github.com/zinels/fleetcert-moodle-compliance/actions/workflows/moodle.yml)
 
-This initial portfolio release implements a compact working design. Runtime integration has **not been verified** in the authoring environment: PHP was unavailable and Docker Desktop could not start. The included tests have not been executed. Review and test before using with real employee information.
+FleetCert is a **native Moodle plugin** for tracking required employee training across multiple organizations. It helps a training administrator answer three practical questions: **Who is up to date? What is about to expire? Who still needs training?**
+
+Each organization chooses its required courses, how long a completion stays valid, and when reminders should begin. Moodle remains responsible for accounts, enrolments, and course completions; FleetCert adds the rules, reporting, onboarding, and organization boundaries around them.
+
+**Status: 0.2.0 · portfolio alpha · synthetic data only.** This is a training-compliance prototype, not a certification authority or a production-ready employee system. The test badges link to executable checks; see [verification and limits](#verification-and-limits) for what they establish.
+
+## What you can do
+
+- **Configure requirements:** choose existing Moodle courses and set validity/reminder periods per organization, without adding customer-specific code.
+- **Onboard employees in bulk:** upload a CSV, review validation errors, and import valid rows. Accounts are created and enrolled through Moodle APIs. Retry checks prevent an unrelated account from being adopted.
+- **Find training gaps:** review organization totals, then filter records by employee, course, or status. Export **all matching records**, rather than just the visible page.
+- **Control organization access:** site administrators assign and remove organization managers in the UI. Other users need both an assignment and the appropriate Moodle capability.
+- **Integrate records:** use Moodle's token-authenticated REST service for paginated training records and organization summaries.
+- **Send reminders:** a daily scheduled task notifies employees about expiring or expired training and records successful sends to avoid ordinary duplicate notifications.
+
+## A quick walkthrough
+
+1. Create a disposable local instance using the setup below.
+2. Enable completion tracking, then run the demo seed. It is designed to create **1,000 synthetic employees, three organizations, and three courses**, with a mix of training states.
+3. Visit **`/local/fleetcert/index.php`** and select an organization. Review the totals and course requirements.
+4. Open **Training records**, choose a status/course/employee filter, and export the matching records.
+5. Try **Bulk onboarding** with `sample-data/employees.csv`. Preview identifies malformed emails and duplicates before import. Uploading the same valid employees again exercises the retry policy.
+6. As site administrator, open **Manage organization managers**. Assign an existing Moodle user who has a system role granting `local/fleetcert:view` and, if needed, `local/fleetcert:manage`. Organization assignment alone does not grant those capabilities.
+
+## How the rules work
+
+A completion is valid for the organization's configured number of **24-hour days**. At its exact expiry timestamp it is **expired**; inside the reminder window it is **expiring** but still valid. A missing or future-dated completion is **incomplete**. Otherwise it is **compliant**.
+
+An employee counts as compliant only when every required course is still valid. Organizations with no configured requirements show zero compliant employees, avoiding a misleading positive result. Deleted and suspended Moodle users are excluded.
+
+Renewal is currently administrator-managed. FleetCert does not reset courses or keep an immutable history of repeated training cycles. That requires an explicit renewal model, rather than silently overwriting Moodle's current completion record.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  Admin[Moodle administrator] --> Forms[Moodle forms / CSV preview]
-  Forms --> Services[Authorization / onboarding / compliance services]
-  REST[Moodle token-authenticated REST] --> Services
-  Services --> DB[(MySQL: organizations, membership, rules)]
-  Services --> Moodle[Moodle users / enrolment / completions]
-  Cron[Moodle scheduled task] --> Messages[Moodle messaging + reminder ledger]
-  Cron --> DB
+    Admin[Training administrator] --> UI[Moodle forms and reports]
+    Client[Customer integration] --> API[Moodle REST services]
+    UI --> Services[Organization access / onboarding / compliance]
+    API --> Services
+    Services --> Rules[(Organization rules and membership)]
+    Services --> Moodle[Moodle accounts / enrolment / completions]
+    Cron[Daily Moodle task] --> Reminder[Shared compliance evaluator]
+    Reminder --> Messaging[Moodle messaging and reminder ledger]
 ```
 
-## Stack and compatibility
+The plugin lives in **`local/fleetcert`**. Five plugin tables hold organizations, employee memberships, manager assignments, course rules, and reminder history. Moodle is the source of truth for employee accounts and course completions. UI reports, summaries, and reminders use the same timestamp evaluator.
 
-- Moodle **4.5.15 LTS**, official `v4.5.15` source tag; upstream commit `215f44380bdc3ccf852a3a22e34f8423ff64033a`
-- PHP 8.3 / Apache, MySQL 8.0, Docker Compose v2
-- Moodle XMLDB, DML, Forms, External Services, messaging and lock APIs
-- PHPUnit tests using Moodle's test harness; GitHub Actions PHP syntax checks
-
-Moodle 4.5 security support runs through October 4, 2027. See [official compatibility requirements](https://moodledev.io/general/releases/4.5). The Docker base image receives PHP patch updates; this is a local development environment, not hardened hosting.
+The code targets **Moodle 4.5.15, PHP 8.3, and MySQL 8.0**. The Docker environment is for local development; it does not configure production hosting or mail delivery.
 
 ## Run locally
+
+Requires Docker with Compose v2. Use a disposable instance and synthetic data.
 
 ```sh
 git clone https://github.com/zinels/fleetcert-moodle-compliance.git
 cd fleetcert-moodle-compliance
 cp .env.example .env
-# Edit .env and replace both password placeholders.
+# Replace the password placeholders in .env before continuing.
 docker compose up -d --build
-docker compose exec --user www-data moodle php admin/cli/install_database.php --agree-license --adminuser=admin --adminpass='ChooseYourOwnStrongPassword!42' --adminemail=admin@example.invalid --fullname=FleetCert --shortname=FleetCert
-# Enable completion tracking in Site administration > Advanced features.
-docker compose exec -e FLEETCERT_DEMO=1 --user www-data moodle php local/fleetcert/cli/seed.php
 ```
 
-Open [Moodle locally](http://localhost:8080), sign in with the admin account you selected, then visit `/local/fleetcert/index.php`. Do not use the illustrative administrator password on a shared deployment. Keep `.env` private.
+Install Moodle using your own administrator password:
 
-For an existing Moodle 4.5 installation, copy `local/fleetcert` into its `local/` directory, then run `php admin/cli/upgrade.php --non-interactive` as the web-server user.
+```sh
+docker compose exec --user www-data moodle \
+  php admin/cli/install_database.php --agree-license \
+  --adminuser=admin --adminpass='REPLACE_WITH_YOUR_OWN_PASSWORD' \
+  --adminemail=admin@example.invalid --fullname=FleetCert --shortname=FleetCert
+```
 
-## Demo walkthrough
+Open [localhost:8080](http://localhost:8080), sign in, and enable **Site administration → Advanced features → Enable completion tracking**. Then generate the demo:
 
-1. Select one of three synthetic organizations to view its aggregate compliance counts and requirements.
-2. Open Training records to see incomplete, compliant, expired and expiring records. CSV exports contain the current 100-row page. Add `courseid=ID` to the report URL to filter a course.
-3. Upload `sample-data/employees.csv` in Bulk onboarding. Preview shows the duplicate and malformed-email errors. Commit imports valid rows and shows row results; the results download contains row numbers and outcomes only.
-4. Re-upload the same valid CSV to exercise retry behavior. Accounts must already belong to the same organization and match the email to be reused.
-5. As site administrator, configure another organization or upsert a course rule. Reminder days must be less than positive validity days. No customer names appear in the rules engine.
+```sh
+docker compose exec -e FLEETCERT_DEMO=1 --user www-data moodle \
+  php local/fleetcert/cli/seed.php
+```
 
-The CLI seed creates 1,000 synthetic employees across three organizations with three required courses each. Domains use `example.invalid`. Repeated seeds reuse identities and existing completion records. It deliberately inserts simulated historical completions using Moodle's completion API; it is only for disposable development instances. The CSV fixture separately demonstrates duplicate and invalid input. Conflicting reminder settings are rejected by form and rules-service validation.
+For an existing Moodle 4.5 installation, copy `local/fleetcert` into its `local/` directory and run `php admin/cli/upgrade.php --non-interactive` as the web-server user. Back up the database before upgrading an existing instance.
 
-## Rules and data design
+## REST integration
 
-`local_fleetcert_org` holds organization names; `member` maps employees to exactly one organization; `manager` maps authorized managers to organizations; `rule` has one course requirement per organization; `notice` deduplicates reminders per organization, employee, course and expiration. XMLDB defines keys and unique indexes. Course completions remain in Moodle's `course_completions` table.
-
-Validity is a fixed number of 24-hour days from Moodle's completion timestamp. At the exact expiration timestamp the record is expired. Expiring records remain compliant until expiration. An employee is compliant when every required course has an unexpired completion. Organizations without requirements show zero compliant employees rather than a misleading positive result. Suspended/deleted accounts are excluded from reports.
-
-Renewal is administrator-managed: a distinct renewal course can be configured, or a separately managed Moodle completion-reset workflow can establish a new completion. This plugin does not erase completion history or automatically reset courses. Reminder frequency is one successful notification per completion expiration; the configured window determines when it becomes eligible.
-
-## Tenant access and security
-
-Site administrators can access all organizations. Other users need both a Moodle system capability (`local/fleetcert:view` or `local/fleetcert:manage`) and a corresponding `local_fleetcert_manager` assignment. The initial UI reserves rule editing for site administrators. Organization-manager assignments are currently provisioned by a trusted site administrator through a migration or Moodle DML script; there is no assignment editor yet.
-
-Moodle forms validate session keys for configuration and uploads; committing previews explicitly requires a POST and session key. DML uses bound parameters. UI fields are escaped. Exports neutralize formula prefixes. Onboarding uses a Moodle lock and a database transaction per row: failed rows roll back while other rows proceed. Existing unrelated accounts are never adopted from CSV. Generated passwords never appear in results; users must use Moodle's password-reset process before their first login. Use real routable email addresses outside the synthetic demo.
-
-Moodle events record configuration and successful onboarding actions. This demonstrates controls relevant to audited environments but makes no SOC 2 compliance or certification claim. Configure log retention, backups, HTTPS and least-privilege service accounts for actual deployment. A full Moodle Privacy API export/deletion provider remains future work; this release must not be used for production personal data.
-
-## REST API
-
-Enable web services and the REST protocol in Moodle. Enable the disabled-by-default **FleetCert integration** service, authorize a dedicated user, grant the view capability and organization assignment, and issue that user's token through Moodle administration. Never use the site-administrator token in an integration.
+Enable Moodle web services and the REST protocol. Enable the disabled-by-default **FleetCert integration** service, authorize a dedicated user, and issue its token. That user needs the view capability and an assignment to the organization being queried. Avoid administrator tokens.
 
 ```sh
 curl --request POST 'http://localhost:8080/webservice/rest/server.php' \
@@ -79,48 +94,33 @@ curl --request POST 'http://localhost:8080/webservice/rest/server.php' \
   --data-urlencode 'wsfunction=local_fleetcert_records' \
   --data-urlencode 'moodlewsrestformat=json' \
   --data-urlencode 'orgid=1' \
+  --data-urlencode 'status=expired' \
   --data-urlencode 'page=0' \
-  --data-urlencode 'limit=100' \
-  --data-urlencode 'userid=0' \
-  --data-urlencode 'courseid=0'
+  --data-urlencode 'limit=100'
 ```
 
-Response records contain only `userid`, `courseid`, `status`, `issued` and `expires` (Unix timestamps, zero for missing completion). Pages are zero based, maximum 500 records. Employee and course filters are optional. Tenant authorization runs before every query. Organization summaries currently exist in the UI service; dedicated summary and expired-only external functions are not implemented. Clients can filter record statuses while paging.
+Record filters: `userid`, `courseid`, and `status` (`compliant`, `incomplete`, `expired`, `expiring`, or empty for all). Filtering occurs **before pagination**; pages start at zero and have at most 500 rows. Responses contain user/course IDs, status, completion timestamp, and expiry timestamp; missing timestamps are zero.
 
-## Scheduled reminders
+For organization totals, use **`local_fleetcert_summary`** with `orgid`. It returns employee totals, compliant employee count, whether requirements are configured, and training-record counts by status. A person and a training record are different counting units.
 
-Run Moodle cron every minute on your deployment, or manually for the demo:
+## Verification and limits
 
-```sh
-docker compose exec --user www-data moodle php admin/cli/cron.php
-```
+Run the dependency-free checks with `php tests/smoke.php`. They test expiry boundaries, future completions, invalid settings, and spreadsheet formula escaping; they do **not** substitute for Moodle integration tests.
 
-The task runs daily at 06:17 in the Moodle scheduler. Configure an outgoing mail transport to deliver email. No cron sidecar is included. The lock and unique reminder ledger prevent duplicates on ordinary repeated runs. A process crash after message dispatch but before ledger insertion can cause a duplicate on retry; exactly-once delivery is not claimed.
+The **Moodle integration** workflow installs a disposable Moodle 4.5.15/MySQL 8.0 environment and runs the plugin's PHPUnit suite on PHP 8.3. Tests cover filtered pagination, summaries, exports beyond 100 rows, privileged cross-organization denial, manager assignments, onboarding retries/rollback, and reminder reruns. The workflow badge links to the actual result, not a guarantee about every deployment.
 
-## Testing and change workflow
+For local PHPUnit setup and operational checks, see **[development and verification](docs/development.md)**.
 
-`local/fleetcert/tests/compliance_test.php` covers expiry boundaries, invalid configurations, CSV validation, formula escaping and capability denial. These tests were written but **not run** here. CI currently checks syntax only, not database integration. To run the Moodle tests in a disposable development instance:
+Controls include organization-scoped authorization, form session keys, parameter validation, bound queries, escaped HTML, formula-safe CSVs, per-row onboarding transactions, and audit events. A reminder ledger protects ordinary reruns; a crash between message delivery and recording success can still cause a duplicate.
 
-1. Install Composer development dependencies in the Moodle container (`composer install` from `/var/www/html`; install Composer there first).
-2. Configure `$CFG->phpunit_prefix = 'phpu_';` and `$CFG->phpunit_dataroot = '/var/www/phpunitdata';` in a local config override, create that writable directory, and run `php admin/tool/phpunit/cli/init.php`.
-3. Run `vendor/bin/phpunit --testsuite local_fleetcert_testsuite`.
+**Remaining work:** Moodle Privacy API export/deletion and retention, recurring-training history, persistent background import batches, date-range filters, and broader browser/token-level testing. The Privacy API provider is not implemented, so **do not load production employee data**. Local Docker startup, browser flows, external mail delivery, and the 1,000-employee demo must also be verified in the deployment environment; automated service tests do not establish those behaviors.
 
-Do not point test configuration at production. Use a feature branch and PR, inspect the syntax workflow, run the Moodle tests and exercise upload, tenant denial and reminders before merging. Deploy a reviewed plugin directory, back up the database, run Moodle CLI upgrade and monitor cron. Add migration steps and increment `version.php` for schema changes.
+## Design decisions
 
-## Engineering Challenges and Lessons Learned
+- **Use Moodle's building blocks.** A separate identity or completion store would create competing sources of truth.
+- **Configure customer differences.** Organization/course rules replace hard-coded customer branches.
+- **Make retries safe.** Matching a username is insufficient: account reuse also requires matching email and existing membership in the same organization.
+- **Separate capabilities from scope.** A broad Moodle permission does not automatically grant access to every customer.
+- **Keep exports useful.** A safety report needs every matching record, even when the on-screen view is paginated.
 
-- Keeping customer logic configurable led to one requirement row per organization/course and a pure timestamp evaluator. The same evaluator drives reports and reminders, avoiding competing definitions of expiration.
-- Safe retries required more than checking a username: onboarding also checks existing tenant membership and email before reusing an account. A row transaction prevents partial enrolments from surviving a failed row.
-- Tenant isolation needed an explicit organization assignment in addition to Moodle's broad system capabilities. A central guard keeps UI and external reads consistent.
-- Moodle already owns authentication, enrolment and completion. Using those APIs avoided a parallel account or certification database, but also means renewal must respect Moodle's existing completion lifecycle.
-- The local authoring environment had no PHP runtime and Docker Desktop would not launch. Consequently integration behavior remains unverified; no benchmark or passing-test claim is made.
-
-## What I Would Change in Version 2
-
-Add a proper recurring-course renewal model with immutable issuance history instead of relying on one current Moodle completion; implement a Privacy API provider and retention policy; add a manager-assignment editor; move onboarding to an ad-hoc task with persistent import batches and expiry; use aggregate SQL for large summaries; add status/date filters and complete streamed exports; implement all dedicated external functions; expand integration tests for row rollback, cross-tenant privileged users, API tokens and crash recovery; and run MySQL-backed Moodle PHPUnit in CI.
-
-## Known limitations
-
-This is an alpha portfolio implementation. No legal certification, performance measurements, completed runtime verification, production privacy support, automated renewal reset, full audit export or 100%-exactly-once messaging is claimed. Reporting uses paginated queries and PHP aggregation. Concurrent configuration updates are not versioned. Preview data lives in the Moodle session until replaced or logout. README demo instructions substitute for screenshots of an unverified runtime.
-
-Licensed GPL-3.0-or-later, compatible with Moodle's plugin ecosystem.
+Licensed **GPL-3.0-or-later**. All included employee data is synthetic.

@@ -5,11 +5,11 @@ defined('MOODLE_INTERNAL') || die();
 final class onboarding {
  public static function preview(string $csv): array {
   $stream = fopen('php://temp', 'r+'); fwrite($stream, $csv); rewind($stream);
-  $header = fgetcsv($stream); $result = []; $seen = [];
+  $header = fgetcsv($stream, 0, ',', '"', ''); $result = []; $seen = [];
   if ($header !== ['username', 'firstname', 'lastname', 'email']) {
    fclose($stream); throw new \invalid_parameter_exception('Expected username,firstname,lastname,email header');
   }
-  while (($row = fgetcsv($stream)) !== false) {
+  while (($row = fgetcsv($stream, 0, ',', '"', '')) !== false) {
    if (count($result) >= 2000) { throw new \invalid_parameter_exception('Maximum 2000 rows'); }
    $error = ''; $data = count($row) === 4 ? array_combine($header, array_map('trim', $row)) : [];
    if (!$data || in_array('', $data, true)) { $error = 'Missing required fields'; }
