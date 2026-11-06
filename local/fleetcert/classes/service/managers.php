@@ -12,7 +12,7 @@ final class managers {
         }
         access::org($orgid, 'manage');
         $user = $DB->get_record('user', ['id' => $userid, 'deleted' => 0], '*', MUST_EXIST);
-        if ($user->suspended || isguestuser($user)) {
+        if (!$remove && ($user->suspended || isguestuser($user))) {
             throw new \invalid_parameter_exception('Choose an active, non-guest user');
         }
         $identity = ['orgid' => $orgid, 'userid' => $userid];

@@ -42,6 +42,9 @@ final class integration_test extends \advanced_testcase {
         $this->assertEquals(2, $summary['incomplete']);
         $this->assertEquals(1, $summary['expired']);
         $this->assertCount(5, iterator_to_array(service\compliance::stream($org)));
+        $empty = service\compliance::stream($org, 999999);
+        $empty->rewind();
+        $this->assertFalse($empty->valid());
         $this->assertEquals($summary, external\summary::execute($org));
         $this->assertEquals($expired, external\records::execute($org, 0, 1, 0, 0, 'expired'));
     }
@@ -80,6 +83,8 @@ final class integration_test extends \advanced_testcase {
         service\managers::assign($org, $user->id);
         $identity = ['orgid' => $org, 'userid' => $user->id];
         $this->assertEquals(1, $DB->count_records('local_fleetcert_manager', $identity));
+        // Suspension must not prevent an administrator from revoking an assignment.
+        $DB->set_field('user', 'suspended', 1, ['id' => $user->id]);
         service\managers::assign($org, $user->id, true);
         $this->assertFalse($DB->record_exists('local_fleetcert_manager', $identity));
     }

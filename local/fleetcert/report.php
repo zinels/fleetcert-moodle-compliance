@@ -25,9 +25,11 @@ if (optional_param('export', 0, PARAM_BOOL)) {
     header('Content-Disposition: attachment; filename="training-records.csv"');
     $out = fopen('php://output', 'w');
     fputcsv($out, ['userid', 'courseid', 'status', 'issued', 'expires'], ',', '"', '');
-    foreach ($records as $record) {
+    while ($records->valid()) {
+        $record = $records->current();
         $cells = array_map([\local_fleetcert\service\onboarding::class, 'csvcell'], array_map('strval', $record));
         fputcsv($out, $cells, ',', '"', '');
+        $records->next();
     }
     fclose($out);
     exit;
@@ -48,7 +50,7 @@ foreach ($DB->get_records_sql('SELECT c.id, c.fullname FROM {course} c
 }
 $statuses = ['' => 'All statuses', 'compliant' => 'Current', 'expiring' => 'Expiring',
     'expired' => 'Expired', 'incomplete' => 'Incomplete'];
-echo html_writer::start_tag('form', ['method' => 'get', 'action' => '/local/fleetcert/report.php']);
+echo html_writer::start_tag('form', ['method' => 'get', 'action' => (new moodle_url('/local/fleetcert/report.php'))->out(false)]);
 echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'orgid', 'value' => $orgid]);
 echo html_writer::label('Course', 'menucourseid');
 echo html_writer::select($courses, 'courseid', $courseid, false);
