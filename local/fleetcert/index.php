@@ -21,7 +21,7 @@ if (is_siteadmin()) {
    if ($record) { $rule->id = $record->id; $DB->update_record('local_fleetcert_rule', $rule); }
    else { $DB->insert_record('local_fleetcert_rule', $rule); } $id = $orgid;
   }
-  \local_fleetcert\event\administration::create(['context' => context_system::instance(), 'objectid' => $id,
+  \local_fleetcert\event\organization_updated::create(['context' => context_system::instance(), 'objectid' => $id,
    'other' => ['action' => 'configuration']])->trigger();
   redirect(new moodle_url('/local/fleetcert/index.php', ['orgid' => $id]));
  }

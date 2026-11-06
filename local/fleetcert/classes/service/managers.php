@@ -21,7 +21,7 @@ final class managers {
         } else if (!$DB->record_exists('local_fleetcert_manager', $identity)) {
             $DB->insert_record('local_fleetcert_manager', (object)$identity);
         }
-        \local_fleetcert\event\administration::create([
+        \local_fleetcert\event\organization_updated::create([
             'context' => \context_system::instance(), 'objectid' => $orgid,
             'relateduserid' => $userid,
             'other' => ['action' => $remove ? 'manager_removed' : 'manager_assigned'],

@@ -1,23 +1,22 @@
-# Resume bullets
+# Portfolio notes
 
-- Implemented a native PHP Moodle local plugin with XMLDB-backed organization requirements and a reusable completion-based compliance evaluator.
-- Built CSV onboarding with validation previews, Moodle account creation and enrolment APIs, per-row transactions, and tenant-aware account reuse.
-- Added capability-protected training reports, paginated Moodle External Services records, scheduled expiry reminders, and a Docker Compose development configuration.
+FleetCert is a native PHP Moodle plugin for organization-specific training requirements. It adds bulk onboarding, training-status reports, full filtered CSV exports, organization-scoped REST records and summaries, manager assignment, and scheduled reminders while keeping Moodle responsible for identity, enrolment, and completion.
 
-# Application email draft
+## Resume bullets
 
-Subject: PHP Developer application — Moodle training compliance project
+- Implemented configurable organization/course requirements and a shared evaluator for incomplete, valid, expiring, and expired training records.
+- Built CSV onboarding with preview validation, Moodle account/enrolment APIs, per-row transactions, and tenant-aware account reuse.
+- Added organization-scoped reports, full streamed exports, REST records/summary services, manager assignment, and reminder deduplication, with fast checks and a MySQL-backed Moodle PHPUnit workflow.
 
-Hello,
+## Describing the boundaries
 
-I’m applying for the PHP Developer role. I’ve attached FleetCert, a Moodle local plugin I built to explore training compliance for logistics teams:
-https://github.com/zinels/fleetcert-moodle-compliance
+This is an alpha portfolio project using synthetic data, not a production certification system. Explain the current CI result separately from manual browser testing and Docker/demo verification. Recurring renewal history and Moodle Privacy API support remain unfinished. Do not claim legal certification, SOC 2 compliance, production deployment, or verified external email delivery.
 
-The plugin stores customer requirements as organization/course configuration and evaluates Moodle completion timestamps against those rules. One important decision was to keep Moodle responsible for accounts, enrolments and completion rather than maintain a second version of that data. Onboarding retries also needed an explicit identity policy: an existing username is reused only when its email and organization membership match.
+## Discussion topics
 
-The next change I would make is a proper renewal history model. Moodle’s current course completion timestamp is useful for an initial implementation, but recurring training needs explicit issuance history and a careful course-reset policy. I would also expand MySQL-backed integration tests. Runtime validation is still outstanding because my authoring environment could not start Docker; the repository documents that limitation.
-
-I’d welcome the opportunity to discuss these decisions and how they relate to your Moodle platform.
-
-Best,
-Tanzeel
+- Customer differences are data: one requirement per organization/course replaces customer-specific branches.
+- A Moodle capability and an organization assignment answer different questions: what a user may do, and whose records they may access.
+- A safe account retry needs email and tenant membership checks as well as a matching username.
+- Reporting should distinguish employees from training records and should export the complete filtered result.
+- A reminder ledger prevents ordinary repeats but does not guarantee exactly-once delivery across crashes.
+- A mature renewal model needs issuance history and an explicit completion-reset policy.

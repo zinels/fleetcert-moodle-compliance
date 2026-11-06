@@ -59,7 +59,7 @@ final class onboarding {
       $role = $DB->get_record('role', ['shortname' => 'student'], '*', MUST_EXIST);
       $manual->enrol_user($instance, $user->id, $role->id);
      }
-     \local_fleetcert\event\administration::create(['context' => \context_system::instance(),
+     \local_fleetcert\event\organization_updated::create(['context' => \context_system::instance(),
       'objectid' => $orgid, 'relateduserid' => $user->id, 'other' => ['action' => 'onboard']])->trigger();
      $transaction->allow_commit(); $row['error'] = 'Success';
     } catch (\Throwable $e) {
